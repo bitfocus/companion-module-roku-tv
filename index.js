@@ -77,7 +77,7 @@ instance.prototype.initConnection = function () {
 	
 	self.actions();
 	
-	setTimeout(initConnection, self.config.interval * 1000);
+	//setTimeout(initConnection, self.config.interval * 1000);
 };
 
 // Return config fields for web config
@@ -215,7 +215,7 @@ instance.prototype.actions = function (system) {
 					type: 'dropdown',
 					label: 'Up/Down',
 					id: 'choice',
-					default: 'on',
+					default: 'up',
 					choices: [
 						{id: 'up', label: 'Up'},
 						{id: 'down', label: 'Down'},
@@ -241,7 +241,7 @@ instance.prototype.actions = function (system) {
 				{
 					type: 'dropdown',
 					label: 'Key',
-					id: 'key',
+					id: 'keybutton',
 					choices: self.Keys
 				}
 			]
@@ -297,7 +297,7 @@ instance.prototype.action = function (action) {
 			cmd = '/keypress/' + options.input;
 			break;
 		case 'app':
-			cmd = '/keypress/' + options.input;
+			cmd = '/keypress/' + options.app;
 			break;
 		case 'volume':
 			if (options.choice === 'up') {
@@ -311,7 +311,7 @@ instance.prototype.action = function (action) {
 			}
 			break;
 		case 'key':
-			cmd = '/' + options.keytype + '/' + options.key;
+			cmd = '/' + options.keytype + '/' + options.keybutton;
 			break;
 		case 'find_remote':
 			cmd = '/keypress/FindRemote';
@@ -324,7 +324,7 @@ instance.prototype.action = function (action) {
 	};
 	
 	if (cmd !== null) {
-		self.system.emit('rest', 'http://' + self.config.host + ':' + self.config.port + cmd, body, function (err, result) {
+		self.system.emit('rest', 'http://' + self.config.host + ':' + self.config.port + cmd, {}, function (err, result) {
 			if (err !== null) {
 				self.log('error', 'Roku TV Command Send Failed (' + result.error.code + ')');
 				self.status(self.STATUS_ERROR, result.error.code);
@@ -339,7 +339,7 @@ instance.prototype.action = function (action) {
 		for (var i = 0; i < options.literalstring.length; i++) {
 			cmd = '/keypress/Lit_' + (options.literalstring.charAt(i));
 			
-			self.system.emit('rest', 'http://' + self.config.host + ':' + self.config.port + cmd, body, function (err, result) {
+			self.system.emit('rest', 'http://' + self.config.host + ':' + self.config.port + cmd, {}, function (err, result) {
 				if (err !== null) {
 					self.log('error', 'Roku TV Command Send Failed (' + result.error.code + ')');
 					self.status(self.STATUS_ERROR, result.error.code);
