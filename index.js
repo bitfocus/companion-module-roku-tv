@@ -48,6 +48,15 @@ instance.prototype.Keys = [
 	{id: 'ChannelDown', label: 'Channel Down'}	
 ];
 
+instance.prototype.ActiveApp = null;
+
+instance.prototype.Variables = [
+	{
+		label: 'Active Input / App',
+		name:  'active-app'
+	}
+];
+
 instance.prototype.init = function () {
 	var self = this;
 
@@ -56,8 +65,6 @@ instance.prototype.init = function () {
 
 	//self.status(self.STATUS_OK);
 
-	self.initFeedbacks();
-	self.initVariables();
 	self.initConnection();
 };
 
@@ -77,7 +84,6 @@ instance.prototype.initConnection = function () {
 	
 	let url_deviceinfo = '/query/device-info';
 	let url_apps = '/query/apps';
-	let url_active_app = '/query/active-app';
 	
 	if (self.config.host) {
 		//get all TV device information first and then build the actions array
@@ -90,7 +96,22 @@ instance.prototype.initConnection = function () {
 			else {
 				let xml = arrResult[2];
 				parseString(xml, function (err, result) {
-					console.log(result);
+										console.log(result);
+					//console.log(result['device-info'].length);
+					
+					let entries = Object.entries(result['device-info']);
+					for (const [key, value] of entries) {
+						let variableObj = {};
+						variableObj.label = key;
+						variableObj.name = key;
+						self.Variables.push(variableObj);
+					}
+					
+					self.setVariableDefinitions(self.Variables);
+					
+					for (const [key, value] of entries) {
+						self.setVariable(key, value);
+					}	
 				});
 			}
 		})
@@ -113,10 +134,6 @@ instance.prototype.initConnection = function () {
 						appObj.id = result.apps.app[i]['$'].id;
 						appObj.label = result.apps.app[i]['_'];
 						self.Apps.push(appObj);
-						
-						//grab /query/icon/ID
-						//buffer.toString('base64')
-						//save this in an array so we can put the app icon on the deck through presets
 					}
 					
 					//export actions now that we have the list of apps
@@ -128,36 +145,47 @@ instance.prototype.initConnection = function () {
 			self.status(self.STATUS_ERROR, arrResult);
 			self.log('error', arrResult[0] + ':' + arrResult[1] + ' ' + arrResult[2]);
 		});
-		
-		self.getRest(url_active_app, self.config.host, self.config.port)
-		.then(function(arrResult) {
-			if (arrResult[2].error) {
-				//throw an error
-				self.status(self.STATUS_ERROR, arrResult[2]);
-			}
-			else {
-				let xml = arrResult[2];
-				parseString(xml, function (err, result) {
-					console.log(result);
-					
-					//save active app as variable
-				});
-			}
-		})
-		.catch(function(arrResult) {
-			self.status(self.STATUS_ERROR, arrResult);
-			self.log('error', arrResult[0] + ':' + arrResult[1] + ' ' + arrResult[2]);
-		});
-
-		//export actions
-		//self.actions();
+				
+		self.getActiveApp();
 		
 		self.initFeedbacks();
-		self.initVariables();
 		self.initPresets();
-
-		//setTimeout(initConnection, self.config.interval * 1000);
 	}
+};
+
+instance.prototype.getActiveApp = function () {
+	var self = this;
+	
+	let url_active_app = '/query/active-app';
+	
+	var parseString = xml2js.parseString;
+	
+	self.getRest(url_active_app, self.config.host, self.config.port)
+	.then(function(arrResult) {
+		if (arrResult[2].error) {
+			//throw an error
+			self.status(self.STATUS_ERROR, arrResult[2]);
+		}
+		else {
+			let xml = arrResult[2];
+			parseString(xml, function (err, result) {
+				console.log(result);
+				let value = result['active-app'].app;
+
+				//save active app as variable
+				self.setVariable('active-app', value);
+				self.ActiveApp = value;
+				
+				self.checkFeedbacks('active-app');
+			});
+		}
+	})
+	.catch(function(arrResult) {
+		self.status(self.STATUS_ERROR, arrResult);
+		self.log('error', arrResult[0] + ':' + arrResult[1] + ' ' + arrResult[2]);
+	});
+	
+	//setTimeout(self.getActiveApp, self.config.interval * 1000);
 };
 
 // Return config fields for web config
@@ -213,67 +241,53 @@ instance.prototype.destroy = function () {
 instance.prototype.initFeedbacks = function () {
 	var self = this;
 
-	var feedbacks = {
+	// feedbacks
+	var feedbacks = {};
 
+	feedbacks['active-app'] = {
+		label: 'Change Button Color If App is Active',
+		description: 'If selected App is active, set the button to this color.',
+		options: [
+			{
+				type: 'dropdown',
+				label: 'Active App',
+				id: 'app',
+				default: 'Roku',
+				choices: self.Apps
+			},
+			{
+				type: 'colorpicker',
+				label: 'Foreground color',
+				id: 'fg',
+				default: self.rgb(255,255,255)
+			},
+			{
+				type: 'colorpicker',
+				label: 'Background color',
+				id: 'bg',
+				default: self.rgb(0,255,0)
+			},
+		]
 	};
 
 	self.setFeedbackDefinitions(feedbacks);
 }
 
-// Set up available variables
-instance.prototype.initVariables = function () {
+instance.prototype.feedback = function(feedback, bank) {
 	var self = this;
+	
+	if (feedback.type === 'active-app') {
+		if (self.ActiveApp === feedback.options.app) {
+			return { color: feedback.options.fg, bgcolor: feedback.options.bg };
+		}
+	}
 
-	var variables = [
-		
-	];
-
-	self.setVariableDefinitions(variables);
-}
-
-/**
- * Updates the dynamic variable and records the internal state of that variable.
- */
-instance.prototype.updateVariable = function (name, value) {
-	var self = this;
-
-	self.setVariable(name, value);
+	return {};
 }
 
 instance.prototype.initPresets = function () {
 	var self = this;
 	var presets = [];
-
-	/*
-	for (var input in self.CHOICES_POWER) {
-		presets.push({
-			category: 'System',
-			label: self.CHOICES_POWER[input].label,
-			bank: {
-				style: 'text',
-				text: self.CHOICES_POWER[input].label,
-				size: pstSize,
-				color: '16777215',
-				bgcolor: 0
-			},
-			actions: [{
-				action: 'power',
-				options:{
-					sel_cmd: self.CHOICES_POWER[input].id,
-				}
-			}]
-		});
-	}*/
-	
-	/*
-	
-	{id: 'Select', label: 'Select'},
-	
-	{id: 'Backspace', label: 'Backspace'},
-	{id: 'Search', label: 'Search'},
-	{id: 'ChannelUp', label: 'Channel Up'},
-	{id: 'ChannelDown', label: 'Channel Down'}	
-	*/
 
 	presets.push({
 		category: 'Keys',
@@ -812,6 +826,10 @@ instance.prototype.action = function (action) {
 				}
 			});
 		}
+	}
+	
+	if ((action.action === 'input') || (action.action === 'app')) {
+		self.getActiveApp();
 	}
 }
 

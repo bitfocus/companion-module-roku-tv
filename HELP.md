@@ -24,50 +24,14 @@ This module will allow you to control your Roku TV using Roku's ECP protocol.
 	* Backspace
 	* Search
 	* Enter/OK
+	* Channel Up / Channel Down (for TV tuner)
 * On Screen Keyboard Search (send literal strings)
 * Find Remote (if supported by the device)
 * Send Custom Command
 
 ### Available Variables
-* UDN
-* Serial Number
-* Device ID
-* Vendor Name
-* Model Number
-* Model Name
-* Model Region
-* Supports Ethernet
-* Wifi MAC Address
-* Ethernet MAC Address
-* Network Type
-* User Device Name
-* Software Version
-* Software Build
-* Secure Device
-* Language
-* Country
-* Locale
-* Time Zone
-* Time Zone Offset
-* Power Mode
-* Supports Suspend
-* Supports Find Remote
-* Supports Audio Guide
-* Developer Enabled
-* Keyed Developer ID
-* Search Enabled
-* Voice Search Enabled
-* Notifications Enabled
-* Notifcations First Use
-* Supports Private Listening
-* Headphones Connected
-
-* Installed Apps
 * Active App
-* Device Info
-* TV Tuner Channels
-* Active TV Tuner Channel
+* Other variables depending on Roku model/device
 
 ### Available Feedbacks
-* Selected Input/App is Active/Not Active
-* Power is On/Off
+* Selected App is Active
