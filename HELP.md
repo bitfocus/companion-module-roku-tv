@@ -5,7 +5,7 @@ This module will allow you to control your Roku TV using Roku's ECP protocol.
 ### Configuration
 * Type in the IP address of the TV.
 * The default Port is 8060.
-* Enable / Disable Feedbacks. If enabled, the module will query the device every 60 seconds for the latest data.
+* Enable / Disable Feedbacks. If enabled, the module will query the device every 30 seconds for the latest data.
 
 ### Available Actions
 * Power On/Off
