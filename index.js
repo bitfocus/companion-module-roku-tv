@@ -25,9 +25,11 @@ instance.prototype.Inputs = [
 	{id: 'InputHDMI4', label: 'HDMI 4'},
 	{id: 'InputAV1', label: 'AV 1'}
 ];
+
 instance.prototype.Apps = [];
+
 instance.prototype.SupportsFindRemote = false;
-instance.prototype.Apps = [];
+
 instance.prototype.Keys = [
 	{id: 'Home', label: 'Home'},
 	{id: 'Rev', label: 'Rewind'},
@@ -48,12 +50,14 @@ instance.prototype.Keys = [
 	{id: 'ChannelDown', label: 'Channel Down'}	
 ];
 
-instance.prototype.ActiveApp = null;
+instance.prototype.ActiveAppID = null;
+
+instance.prototype.Timer = undefined;
 
 instance.prototype.Variables = [
 	{
-		label: 'Active Input / App',
-		name:  'active-app'
+		label: 'Active App / Input',
+		name: 'active-app'
 	}
 ];
 
@@ -92,14 +96,20 @@ instance.prototype.initConnection = function () {
 			if (arrResult[2].error) {
 				//throw an error
 				self.status(self.STATUS_ERROR, arrResult[2]);
+				self.StopTimer();
 			}
 			else {
 				let xml = arrResult[2];
-				parseString(xml, function (err, result) {
-										console.log(result);
-					//console.log(result['device-info'].length);
-					
+				parseString(xml, function (err, result) {					
 					let entries = Object.entries(result['device-info']);
+					
+					self.Variables = [
+						{
+							label: 'Active App / Input',
+							name: 'active-app'
+						}
+					];
+					
 					for (const [key, value] of entries) {
 						let variableObj = {};
 						variableObj.label = key;
@@ -113,11 +123,14 @@ instance.prototype.initConnection = function () {
 						self.setVariable(key, value);
 					}	
 				});
+				
+				self.status(self.STATUS_OK);
 			}
 		})
 		.catch(function(arrResult) {
 			self.status(self.STATUS_ERROR, arrResult);
 			self.log('error', arrResult[0] + ':' + arrResult[1] + ' ' + arrResult[2]);
+			self.StopTimer();
 		});
 		
 		self.getRest(url_apps, self.config.host, self.config.port)
@@ -125,10 +138,13 @@ instance.prototype.initConnection = function () {
 			if (arrResult[2].error) {
 				//throw an error
 				self.status(self.STATUS_ERROR, arrResult[2]);
+				self.StopTimer();
 			}
 			else {
 				let xml = arrResult[2];
 				parseString(xml, function (err, result) {
+					self.Apps = [];
+					
 					for (let i = 0; i < result.apps.app.length; i++) {
 						let appObj = {};
 						appObj.id = result.apps.app[i]['$'].id;
@@ -139,16 +155,25 @@ instance.prototype.initConnection = function () {
 					//export actions now that we have the list of apps
 					self.actions();
 				});
+				
+				self.status(self.STATUS_OK);
 			}
 		})
 		.catch(function(arrResult) {
 			self.status(self.STATUS_ERROR, arrResult);
 			self.log('error', arrResult[0] + ':' + arrResult[1] + ' ' + arrResult[2]);
+			self.StopTimer();
 		});
-				
+		
+		if (self.config.enable_feedbacks) {
+			if (self.Timer === undefined) {
+				self.Timer = setInterval(self.getActiveApp.bind(self), 30000);	
+			}
+			self.initFeedbacks();
+		}
+		
 		self.getActiveApp();
 		
-		self.initFeedbacks();
 		self.initPresets();
 	}
 };
@@ -165,27 +190,39 @@ instance.prototype.getActiveApp = function () {
 		if (arrResult[2].error) {
 			//throw an error
 			self.status(self.STATUS_ERROR, arrResult[2]);
+			self.StopTimer();
 		}
 		else {
 			let xml = arrResult[2];
 			parseString(xml, function (err, result) {
-				console.log(result);
-				let value = result['active-app'].app;
+				let nameValue = '';
+				let idValue = '';
+				
+				if (result['active-app'].app[0]['_']) {
+					nameValue = result['active-app'].app[0]['_'];
+					idValue = result['active-app'].app[0]['$'].id;
+				}
+				else {
+					value = result['active-app'].app[0];
+					idValue = 0;
+				}
 
 				//save active app as variable
-				self.setVariable('active-app', value);
-				self.ActiveApp = value;
+				self.setVariable('active-app', nameValue);
+				self.ActiveAppID = idValue;
 				
 				self.checkFeedbacks('active-app');
+				self.checkFeedbacks('active-input');
 			});
+			
+			self.status(self.STATUS_OK);
 		}
 	})
 	.catch(function(arrResult) {
 		self.status(self.STATUS_ERROR, arrResult);
 		self.log('error', arrResult[0] + ':' + arrResult[1] + ' ' + arrResult[2]);
+		self.StopTimer();
 	});
-	
-	//setTimeout(self.getActiveApp, self.config.interval * 1000);
 };
 
 // Return config fields for web config
@@ -217,22 +254,29 @@ instance.prototype.config_fields = function () {
 			regex: self.REGEX_PORT
 		},
 		{
-			type: 'number',
-			id: 'interval',
-			label: 'Update Interval',
-			min: 10,
-			max: 600,
-			default: 60,
-			tooltip: 'The interval at which the instance should fetch new data from the device.',
-			required: true,
-			range: true
+			type: 'checkbox',
+			id: 'enable_feedbacks',
+			label: 'Enable Feedbacks',
+			default: true,
+			tooltip: 'If enabled, the module will query the device every 60 seconds for the latest data.'
 		}
 	]
+}
+
+instance.prototype.StopTimer = function () {
+	var self = this;
+	
+	if (self.Timer) {
+		clearInterval(self.Timer);
+		delete self.Timer;
+	}
 }
 
 // When module gets deleted
 instance.prototype.destroy = function () {
 	var self = this;
+	
+	self.StopTimer();
 
 	debug('destroy', self.id);
 }
@@ -252,8 +296,32 @@ instance.prototype.initFeedbacks = function () {
 				type: 'dropdown',
 				label: 'Active App',
 				id: 'app',
-				default: 'Roku',
 				choices: self.Apps
+			},
+			{
+				type: 'colorpicker',
+				label: 'Foreground color',
+				id: 'fg',
+				default: self.rgb(255,255,255)
+			},
+			{
+				type: 'colorpicker',
+				label: 'Background color',
+				id: 'bg',
+				default: self.rgb(0,255,0)
+			},
+		]
+	};
+	
+	feedbacks['active-input'] = {
+		label: 'Change Button Color If Input is Active',
+		description: 'If selected Input is active, set the button to this color.',
+		options: [
+			{
+				type: 'dropdown',
+				label: 'Active Input',
+				id: 'input',
+				choices: self.Inputs
 			},
 			{
 				type: 'colorpicker',
@@ -277,7 +345,24 @@ instance.prototype.feedback = function(feedback, bank) {
 	var self = this;
 	
 	if (feedback.type === 'active-app') {
-		if (self.ActiveApp === feedback.options.app) {
+		if (self.ActiveAppID === feedback.options.app) {
+			return { color: feedback.options.fg, bgcolor: feedback.options.bg };
+		}
+	}
+	
+	if (feedback.type === 'active-input') {
+		let inputTranslationArray = [
+			{id: 'InputTuner', queryid: 'tvinput.dtv'},
+			{id: 'InputHDMI1', queryid: 'tvinput.hdmi1'},
+			{id: 'InputHDMI2', queryid: 'tvinput.hdmi2'},
+			{id: 'InputHDMI3', queryid: 'tvinput.hdmi3'},
+			{id: 'InputHDMI4', queryid: 'tvinput.hdmi4'},
+			{id: 'InputAV1', queryid: 'tvinput.cvbs'}
+		]
+		
+		let selectedInput = inputTranslationArray.find( ({ id }) => id === feedback.options.input);
+		
+		if (self.ActiveAppID === selectedInput.queryid) {
 			return { color: feedback.options.fg, bgcolor: feedback.options.bg };
 		}
 	}
@@ -827,10 +912,6 @@ instance.prototype.action = function (action) {
 			});
 		}
 	}
-	
-	if ((action.action === 'input') || (action.action === 'app')) {
-		self.getActiveApp();
-	}
 }
 
 instance.prototype.getRest = function(cmd, host, port) {
@@ -889,11 +970,8 @@ instance.prototype.doRest = function(method, cmd, host, port, body) {
 
 			default:
 				throw new Error('Invalid method');
-
 		}
-
 	});
-
 };
 
 instance.prototype.makeUrl = function(cmd, host, port) {
@@ -904,7 +982,6 @@ instance.prototype.makeUrl = function(cmd, host, port) {
 	}
 
 	return 'http://' + host + ':' + port + cmd;
-
 };
 
 //icons
@@ -927,8 +1004,6 @@ instance.prototype.ROKUICON_VOLUMEMUTE = "iVBORw0KGgoAAAANSUhEUgAAAEgAAAA6CAYAAA
 
 instance.prototype.ROKUICON_POWERON = "iVBORw0KGgoAAAANSUhEUgAAAEgAAAA6CAYAAAATBx+NAAAGXElEQVR4nO2b228bRRTGv5ldr+06TlISu00vSdrSC6ikhQJFKmrpQ1VaeKgEPBTEE/AAqpAqAf8B4vICElAekBASSFwkKsEDUoUQCkUgKL1RUFv1ljYQIjdpGjsXX3Zn0G5i4zgz3l1nNqnE/qR9sMc7Z/bb2TPnnFmTux94iCNECg2lqU8okAuhQC6EArkQCuRCKJALoUAuhAK5oN8aoyAwnuyAtqXVuWXs9yyKnwyAT7KFH9qCjwBwxNF3pSqfte1tMCIEhUP9SvrnbHayQCjxdO6CP2IkQaFvu23W99p9i0HbI4HZtUUrH7APW8Pag/FbQKC4Dq4L7qZGQBJa8PbLopSFqjo4vyUesem7J2kKCuLSt6PZ/2UVq/U39cSxm6xpcTAfTppEKSL70qAbk8Akg/ntdZjHsg31pd3VhMieNNCsg50fQ+lwBnzc9DceF3Fq181ABaIdBowD3aCd8cp3xoYm4P0+mD+P+upL60kienCVExI4fXfFQXuaUXqvD1Zf3vV8ZxYJVrMyInEQ5COmdcVgvLxmhjgOBNB3p333F9mTqohThi6NwnhpNfQNCW+dEOLYr8WSiIOgBKLtBoyDq0BThnicixowK1nRSEsE+ovd0FZG3fuwxaEzRbKkP55a3tQLRIDoC50gbWJxbFjfhO9u2cVxaRtN6jCe7wIxvAV/tkicuIkz/VN/w3THeHwpyFr5lGdXJlD6bNB3v6UvM2Bnx6TtZGUcxtPLfPRIIA6mZ/oppQJpnTFoe1LSdnZ6FIXXLoHdKPnu216t8m9cBvtlRG5/Rzv09d78EXGuvFohLgy8lAqk702BRMRdsj9zyL91dW4JqMWRf/ca2DGJSATQHpXfIBFTs0i+uikTiLZFQO9tFbbx4SIK7/Q5F6iC/KF+8H/ES7vW0+zMZC8QD1evTCD9wcVOUCjCPDwIPq6wdGFyFD8dELdRAm377OS3UdQIRAC6pUXYxK5NonRU7jcaxTqZAzsndtp0UzPgdUVzQYlAtCMKslw8rVnvjcCSTvO7IfF4lhigHh8zN9QI1BkDMWZ3xYsM5gmXvItBGN16wTqTA0S5GCGg3fEGepyC2ueXj4Z7qR7PEkkUO1wEGyrWPZeNmuAjs5d9njXBrtc/1/ZrbFD8G1onUK2cX5OblUUpY+dvagRqFue8fNRDpm1xmJ8POI73vxMB8wtvNWmelYi4yFuxjfEpu2VhbFHKB1Rl89IQv+jN+djlD/7mJWhbW5xVyDqRhXUq5822xAbR6j+31bOnWpxalAjETYkQEe/OxTo77hy+bcts8DqljWlx7NlTTxwoqwflxGkfSQZf0aVJSWF/YvbjWT1rWJWA9XY4lPggnimIG1IGSGtwOxNOYJoWLxBM4PirqXXI0t/NdZDOYK7lZzrZaewL0Dd6LGY1AL0jAdIimKX2pkT/7FSk2gHXOmMZSgSy/i6AD4pnEd3ZrsKEEH2nOKXgN4pgl/3XnESoSTUsDuu0uMasrUtA25xUYqYauiYObbMkvfkjp2zbWlmyav4wInzMbCJPdDQcLcuI7F8GYcWLA6XeYWV2lAnEBgqwzohnkV24jz6zQpUpRPd3QFvfJB7H+TGwC5PKbCktmFnfDEkTU21HG6JPdczZhrEvDW2vfFfEPHJ9zjaqUSqQeW4c1o/y6a09nEbsQKd45XHBfskh+uwK6I/JRbZO3oT5W2ObkjKUR3LFjwcQXdvk7FmJoFsXI7a2ybnTZu+wayGNxCi0ba3Q96ZBJTGPDb9ZQvFDSRFtDgTypj1dl0D0ldXSCmPlouxs/2wO7MIErL8KU6ULezQJCm15DPT2BMidSen+WgXGUXj7ilNEU01gf0XQ729G5LkuZwZ4xcnpOJcW/oWYHKWP+lHqVV+1RJBbz+avWRQP9YFPyLfnaiE68SWOXZArfnA1MHEQ9Osv9pQvvnoR7JL/LN0N3j+JwusXYf7k7yUIv8zPv33slzQfSUHb1e7spc+JcRPm98MofZ2Zl5c85+cNM3ub5qsM6NERaLvboN/TCiJZ5WSwTAHsVBbmkSGwTP1SrEoW5v9iOoG+KQnakwTtXuTERSSuVWJMO4HgeQaeLYFfnYB1ZgzW6Zzz3bwPdd4tYmpGmcezwHG1QV0QhG/auxAK5EIokAuhQC6EArkQCuRCKJALoUD1APAvzDceTuNkbOwAAAAASUVORK5CYII=";
 instance.prototype.ROKUICON_POWEROFF = "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";
-
-
 
 instance_skel.extendedBy(instance);
 exports = module.exports = instance;
