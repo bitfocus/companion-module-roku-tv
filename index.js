@@ -258,7 +258,7 @@ instance.prototype.config_fields = function () {
 			id: 'enable_feedbacks',
 			label: 'Enable Feedbacks',
 			default: true,
-			tooltip: 'If enabled, the module will query the device every 60 seconds for the latest data.'
+			tooltip: 'If enabled, the module will query the device every 30 seconds for the latest data.'
 		}
 	]
 }
