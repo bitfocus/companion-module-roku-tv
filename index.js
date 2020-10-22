@@ -1,10 +1,6 @@
 // Roku-Tv
 
-var tcp = require('../../tcp');
 var instance_skel = require('../../instance_skel');
-var Client = require('node-rest-client').Client;
-var debug;
-var log;
 
 const xml2js = require('xml2js');
 
@@ -64,19 +60,12 @@ instance.prototype.Variables = [
 instance.prototype.init = function () {
 	var self = this;
 
-	debug = self.debug;
-	log = self.log;
-
-	//self.status(self.STATUS_OK);
-
 	self.initConnection();
 };
 
 instance.prototype.updateConfig = function (config) {
 	var self = this;
 	self.config = config;
-
-	self.status(self.STATUS_OK);
 
 	self.initConnection();
 };
@@ -91,138 +80,159 @@ instance.prototype.initConnection = function () {
 	
 	if (self.config.host) {
 		//get all TV device information first and then build the actions array
-		self.getRest(url_deviceinfo, self.config.host, self.config.port)
-		.then(function(arrResult) {
-			if (arrResult[2].error) {
-				//throw an error
-				self.status(self.STATUS_ERROR, arrResult[2]);
-				self.StopTimer();
-			}
-			else {
-				let xml = arrResult[2];
-				parseString(xml, function (err, result) {					
-					let entries = Object.entries(result['device-info']);
-					
-					self.Variables = [
-						{
-							label: 'Active App / Input',
-							name: 'active-app'
+		try {
+			self.getRest(url_deviceinfo, self.config.host, self.config.port)
+			.then(function(arrResult) {
+				if (arrResult[2].error) {
+					//throw an error
+					self.status(self.STATUS_ERROR, 'Error obtaining Device Info from Roku Device.');
+					self.log('error', 'Error obtaining Device Info from Roku Device.');
+					self.StopTimer();
+				}
+				else {
+					let xml = arrResult[2];
+					parseString(xml, function (err, result) {					
+						let entries = Object.entries(result['device-info']);
+						
+						self.Variables = [
+							{
+								label: 'Active App / Input',
+								name: 'active-app'
+							}
+						];
+						
+						for (const [key, value] of entries) {
+							let variableObj = {};
+							variableObj.label = key;
+							variableObj.name = key;
+							self.Variables.push(variableObj);
 						}
-					];
+						
+						self.setVariableDefinitions(self.Variables);
+						
+						for (const [key, value] of entries) {
+							self.setVariable(key, value);
+						}	
+					});
 					
-					for (const [key, value] of entries) {
-						let variableObj = {};
-						variableObj.label = key;
-						variableObj.name = key;
-						self.Variables.push(variableObj);
-					}
-					
-					self.setVariableDefinitions(self.Variables);
-					
-					for (const [key, value] of entries) {
-						self.setVariable(key, value);
-					}	
-				});
-				
-				self.status(self.STATUS_OK);
-			}
-		})
-		.catch(function(arrResult) {
-			self.status(self.STATUS_ERROR, arrResult);
-			self.log('error', arrResult[0] + ':' + arrResult[1] + ' ' + arrResult[2]);
-			self.StopTimer();
-		});
-		
-		self.getRest(url_apps, self.config.host, self.config.port)
-		.then(function(arrResult) {
-			if (arrResult[2].error) {
-				//throw an error
-				self.status(self.STATUS_ERROR, arrResult[2]);
+					self.status(self.STATUS_OK);
+				}
+			})
+			.catch(function(arrResult) {
+				self.status(self.STATUS_ERROR, 'Error obtaining Device Info from Roku Device.');
+				self.log('error', 'Error obtaining Device Info from Roku Device.');
 				self.StopTimer();
-			}
-			else {
-				let xml = arrResult[2];
-				parseString(xml, function (err, result) {
-					self.Apps = [];
+			});
+
+			self.getRest(url_apps, self.config.host, self.config.port)
+			.then(function(arrResult) {
+				if (arrResult[2].error) {
+					//throw an error
+					self.status(self.STATUS_ERROR, 'Error obtaining Apps List from Roku Device.');
+					self.log('error', 'Error obtaining Apps List from Roku Device.');
+					self.StopTimer();
+				}
+				else {
+					let xml = arrResult[2];
+					parseString(xml, function (err, result) {
+						self.Apps = [];
+						
+						for (let i = 0; i < result.apps.app.length; i++) {
+							let appObj = {};
+							appObj.id = result.apps.app[i]['$'].id;
+							appObj.label = result.apps.app[i]['_'];
+							self.Apps.push(appObj);
+						}
+						
+						//export actions now that we have the list of apps
+						self.actions();
+					});
 					
-					for (let i = 0; i < result.apps.app.length; i++) {
-						let appObj = {};
-						appObj.id = result.apps.app[i]['$'].id;
-						appObj.label = result.apps.app[i]['_'];
-						self.Apps.push(appObj);
-					}
-					
-					//export actions now that we have the list of apps
-					self.actions();
-				});
-				
-				self.status(self.STATUS_OK);
+					self.status(self.STATUS_OK);
+				}
+			})
+			.catch(function(arrResult) {
+				self.status(self.STATUS_ERROR, 'Error obtaining Apps List from Roku Device.');
+				self.log('error', 'Error obtaining Apps List from Roku Device.');
+				self.StopTimer();
+			});
+			
+			if (self.config.enable_feedbacks) {
+				if (self.Timer === undefined) {
+					self.Timer = setInterval(self.getActiveApp.bind(self), 30000);	
+				}
+				self.initFeedbacks();
 			}
-		})
-		.catch(function(arrResult) {
-			self.status(self.STATUS_ERROR, arrResult);
-			self.log('error', arrResult[0] + ':' + arrResult[1] + ' ' + arrResult[2]);
-			self.StopTimer();
-		});
-		
-		if (self.config.enable_feedbacks) {
-			if (self.Timer === undefined) {
-				self.Timer = setInterval(self.getActiveApp.bind(self), 30000);	
-			}
-			self.initFeedbacks();
+			
+			self.getActiveApp();
+			
+			self.initPresets();
+
+			self.status(self.STATUS_OK);
 		}
-		
-		self.getActiveApp();
-		
-		self.initPresets();
+		catch(error) {
+			self.status(self.STATUS_ERROR, 'Error obtaining data from Roku Device.');
+			self.log('error', 'Error obtaining data from Roku Device.');
+			self.StopTimer();
+			self.status(self.STATUS_ERROR);
+		}
 	}
 };
 
 instance.prototype.getActiveApp = function () {
 	var self = this;
-	
-	let url_active_app = '/query/active-app';
-	
-	var parseString = xml2js.parseString;
-	
-	self.getRest(url_active_app, self.config.host, self.config.port)
-	.then(function(arrResult) {
-		if (arrResult[2].error) {
-			//throw an error
-			self.status(self.STATUS_ERROR, arrResult[2]);
-			self.StopTimer();
-		}
-		else {
-			let xml = arrResult[2];
-			parseString(xml, function (err, result) {
-				let nameValue = '';
-				let idValue = '';
-				
-				if (result['active-app'].app[0]['_']) {
-					nameValue = result['active-app'].app[0]['_'];
-					idValue = result['active-app'].app[0]['$'].id;
-				}
-				else {
-					value = result['active-app'].app[0];
-					idValue = 0;
-				}
 
-				//save active app as variable
-				self.setVariable('active-app', nameValue);
-				self.ActiveAppID = idValue;
+	try {
+		let url_active_app = '/query/active-app';
+	
+		var parseString = xml2js.parseString;
+		
+		self.getRest(url_active_app, self.config.host, self.config.port)
+		.then(function(arrResult) {
+			if (arrResult[2].error) {
+				//throw an error
+				self.status(self.STATUS_ERROR, 'Error obtaining Active App from Roku Device');
+				self.log('error', 'Error obtaining Active App from Roku Device.');
+				self.StopTimer();
+			}
+			else {
+				let xml = arrResult[2];
+				parseString(xml, function (err, result) {
+					let nameValue = '';
+					let idValue = '';
+					
+					if (result['active-app'].app[0]['_']) {
+						nameValue = result['active-app'].app[0]['_'];
+						idValue = result['active-app'].app[0]['$'].id;
+					}
+					else {
+						value = result['active-app'].app[0];
+						idValue = 0;
+					}
+	
+					//save active app as variable
+					self.setVariable('active-app', nameValue);
+					self.ActiveAppID = idValue;
+					
+					self.checkFeedbacks('active-app');
+					self.checkFeedbacks('active-input');
+				});
 				
-				self.checkFeedbacks('active-app');
-				self.checkFeedbacks('active-input');
-			});
-			
-			self.status(self.STATUS_OK);
-		}
-	})
-	.catch(function(arrResult) {
-		self.status(self.STATUS_ERROR, arrResult);
-		self.log('error', arrResult[0] + ':' + arrResult[1] + ' ' + arrResult[2]);
+				self.status(self.STATUS_OK);
+			}
+		})
+		.catch(function(arrResult) {
+			self.status(self.STATUS_ERROR, 'Error obtaining Active App from Roku Device.');
+			self.log('error', 'Error obtaining Active App from Roku Device.');
+			self.StopTimer();
+		});
+	}
+	catch(error) {
+		self.status(self.STATUS_ERROR, 'Error obtaining Active App from Roku Device.');
+		self.log('error', 'Error obtaining Active App from Roku Device.');
 		self.StopTimer();
-	});
+		self.status(self.STATUS_ERROR);
+	}
 };
 
 // Return config fields for web config
@@ -278,7 +288,7 @@ instance.prototype.destroy = function () {
 	
 	self.StopTimer();
 
-	debug('destroy', self.id);
+	self.debug('destroy', self.id);
 }
 
 // Set up Feedbacks
@@ -904,7 +914,7 @@ instance.prototype.action = function (action) {
 			self.system.emit('rest', 'http://' + self.config.host + ':' + self.config.port + cmd, {}, function (err, result) {
 				if (err !== null) {
 					self.log('error', 'Roku TV Command Failed (' + result.error.code + ')');
-					self.status(self.STATUS_ERROR, result.error.code);
+					self.status(self.STATUS_ERROR, 'Roku TV Command Failed (' + result.error.code + ')');
 				}
 				else {
 					self.status(self.STATUS_OK);
