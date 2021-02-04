@@ -163,6 +163,9 @@ instance.prototype.initConnection = function () {
 				}
 				self.initFeedbacks();
 			}
+			else {
+				self.StopTimer();
+			}
 			
 			self.getActiveApp();
 			
