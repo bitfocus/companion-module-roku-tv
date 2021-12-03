@@ -557,7 +557,7 @@ instance.prototype.initPresets = function () {
 	
 	presets.push({
 		category: 'Keys',
-		label: 'Enter / OK',
+		label: 'Select / OK',
 		bank: {
 			style: 'png',
 				text: '',
@@ -571,7 +571,7 @@ instance.prototype.initPresets = function () {
 			action: 'key',
 			options:{
 				keytype: 'keypress',
-				keybutton: 'Enter'
+				keybutton: 'Select'
 			}
 		}]
 	});
