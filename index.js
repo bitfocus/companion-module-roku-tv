@@ -850,7 +850,7 @@ instance.prototype.actions = function (system) {
 	
 	//now remove the options this device doesn't support (find_remote, inputs, channel up/down, volume, poweroff, etc.)
 
-	self.system.emit('instance_actions', self.id, actionsArray);
+	self.setActions(actionsArray);
 }
 
 instance.prototype.action = function (action) {
