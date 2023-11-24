@@ -15,7 +15,6 @@ module.exports = {
 				self.getData(); //get data immediately
 			}
 			else {
-				console.log('here2');
 				self.getData();
 			}
 		}	
@@ -76,9 +75,6 @@ module.exports = {
 
 						self.initActions();
 						self.updateStatus(InstanceStatus.Ok);
-
-						console.log(self.DEVICE_INFO);
-						console.log(self.DEVICE_INFO['power-mode']);
 					});
 				}
 			}
@@ -184,7 +180,6 @@ module.exports = {
 		if (self.config.host) {
 			try {
 				let url =  'http://' + self.config.host + ':' + self.config.port + cmd;
-				console.log(url);
 				axios.post(url);
 			}
 			catch(error) {
