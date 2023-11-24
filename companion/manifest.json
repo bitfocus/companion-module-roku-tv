@@ -1,0 +1,30 @@
+{
+	"id": "roku-tv",
+	"name": "roku-tv",
+	"shortname": "roku-tv",
+	"description": "",
+	"version": "0.0.0",
+	"license": "MIT",
+	"repository": "git+https://github.com/bitfocus/companion-module-roku-tv.git",
+	"bugs": "https://github.com/bitfocus/companion-module-roku-tv/issues",
+	"maintainers": [
+		{
+			"name": "Joseph Adams",
+			"email": "josephdadams@gmail.com"
+		}
+	],
+	"legacyIds": [],
+	"runtime": {
+		"type": "node18",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../index.js"
+	},
+	"manufacturer": "Roku",
+	"products": [
+		"TV"
+	],
+	"keywords": [
+		"TV"
+	]
+}
