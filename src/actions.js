@@ -129,7 +129,8 @@ module.exports = {
 					type: 'textinput',
 					label: 'String',
 					id: 'literalstring',
-					default: ''
+					default: '',
+					useVariables: true
 				}
 			],
 			callback: async function (action) {
@@ -157,13 +158,16 @@ module.exports = {
 					type: 'textinput',
 					label: 'Command',
 					id: 'command',
-					default: ''
+					default: '',
+					useVariables: true
 				}
 			],
-			callback: function (action) {
+			callback: async function (action) {
 				let opt = action.options;
 
-				self.sendCommand(opt.command);
+				let cmd = await self.parseVariablesInString(opt.command);
+
+				self.sendCommand(cmd);
 			}
 		};
 
