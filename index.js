@@ -8,6 +8,7 @@ const variables = require('./src/variables');
 const presets = require('./src/presets');
 
 const api = require('./src/api');
+const constants = require('./src/constants');
 
 class rokuInstance extends InstanceBase {
 	constructor(internal) {
@@ -21,6 +22,7 @@ class rokuInstance extends InstanceBase {
 			...variables,
 			...presets,
 			...api,
+			...constants
 		})
 		
 		this.Apps = [];
