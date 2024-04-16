@@ -85,12 +85,15 @@ module.exports = {
 					default: 'PowerOn',
 					choices: [
 						{id: 'PowerOn', label: 'On'},
-						{id: 'PowerOff', label: 'Off'}
+						{id: 'PowerOff', label: 'Off'},
+						{id: 'Standby', label: 'Standby'},
+						{id: 'Ready', label: 'Ready'},
+						{id: 'Suspend', label: 'Suspend'},
 					]
 				}
 			],
 			callback: function (feedback, bank) {
-				if (self.DEVICE_INFO['power-mode'] == feedback.options.powermode) {
+				if (self.DEVICE_INFO['power-mode'].toLowerCase() == feedback.options.powermode.toLowerCase()) {
 					return true;
 				}
 				else {
