@@ -14,7 +14,7 @@ module.exports = {
 				type: 'textinput',
 				id: 'host',
 				label: 'Target IP',
-				default: '192.168.0.250',
+				default: '',
 				width: 6,
 				regex: Regex.IP
 			},
@@ -39,7 +39,7 @@ module.exports = {
 				id: 'poll_interval',
 				label: 'Poll Interval (ms)',
 				default: 30000,
-				width: 8,
+				width: 4,
 				min: 100,
 				max: 60000,
 				isVisible: config => config.enable_feedbacks

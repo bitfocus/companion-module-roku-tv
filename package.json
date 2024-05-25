@@ -1,6 +1,6 @@
 {
 	"name": "roku-tv",
-	"version": "2.0.4",
+	"version": "2.0.5",
 	"main": "index.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
@@ -11,11 +11,10 @@
 	},
 	"license": "MIT",
 	"dependencies": {
-		"@companion-module/base": "~1.6.0",
-		"axios": "^1.6.2",
+		"@companion-module/base": "~1.8.0",
 		"xml2js": "^0.5.0"
 	},
 	"devDependencies": {
-		"@companion-module/tools": "^1.4.1"
+		"@companion-module/tools": "^1.5.0"
 	}
 }

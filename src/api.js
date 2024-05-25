@@ -1,13 +1,12 @@
 const { InstanceStatus } = require('@companion-module/base');
 
-const axios = require('axios');
 const xml2js = require('xml2js');
 
 module.exports = {
 	initConnection: function () {
 		let self = this;
 
-		if (self.config.host) {
+		if (self.config.host && self.config.host !== '') {
 			if (self.config.enable_feedbacks) {
 				//create the interval and start polling
 				self.stopTimer();
@@ -15,7 +14,7 @@ module.exports = {
 				self.getData(); //get data immediately
 			}
 			else {
-				self.getData();
+				self.getData(); //just get it one time
 			}
 		}	
 	},
@@ -38,12 +37,12 @@ module.exports = {
 
 				let parseString = xml2js.parseString;
 
-				let response = await axios.get('http://' + self.config.host + ':' + self.config.port + url_deviceinfo);
-
-				if (response) {
-					let xml = response.data;
-
-					parseString(xml, function (err, result) {
+				let url = 'http://' + self.config.host + ':' + self.config.port + url_deviceinfo
+				let response = await fetch(url);
+				let xml = await response.text();
+				
+				parseString(xml, function (err, result) {
+					if (result) {
 						let entries = Object.entries(result['device-info']);
 
 						self.DEVICE_INFO = {};
@@ -75,8 +74,8 @@ module.exports = {
 
 						self.initActions();
 						self.updateStatus(InstanceStatus.Ok);
-					});
-				}
+					}
+				});
 			}
 			catch(error) {
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Error obtaining Device Info from Roku Device.');
@@ -96,14 +95,14 @@ module.exports = {
 
 				let parseString = xml2js.parseString;
 
-				let response = await axios.get('http://' + self.config.host + ':' + self.config.port + url_apps);
+				let url = 'http://' + self.config.host + ':' + self.config.port + url_apps;
+				let response = await fetch(url);
+				let xml = await response.text();
 
-				if (response) {
-					let xml = response.data;
+				parseString(xml, function (err, result) {
+					self.Apps = [];
 
-					parseString(xml, function (err, result) {
-						self.Apps = [];
-						
+					if (result) {
 						for (let i = 0; i < result.apps.app.length; i++) {
 							let appObj = {};
 							appObj.id = result.apps.app[i]['$'].id;
@@ -112,11 +111,12 @@ module.exports = {
 						}
 
 						self.initActions();
-					});
-				}
+					}
+				});
 			}
 			catch(error) {
-				self.status(InstanceStatus.ConnectionFailure, 'Error obtaining Apps List from Roku Device.');
+				console.log(error)
+				self.updateStatus(InstanceStatus.ConnectionFailure, 'Error obtaining Apps List from Roku Device.');
 				self.log('error', 'Error obtaining Apps List from Roku Device.');
 				self.stopTimer();
 			}
@@ -132,15 +132,15 @@ module.exports = {
 
 				let parseString = xml2js.parseString;
 
-				let response = await axios.get('http://' + self.config.host + ':' + self.config.port + url_active_app);
+				let url = 'http://' + self.config.host + ':' + self.config.port + url_active_app;
+				let response = await fetch(url);
+				let xml = await response.text();
 
-				if (response) {
-					let xml = response.data;
+				parseString(xml, function (err, result) {
+					let nameValue = '';
+					let idValue = '';
 
-					parseString(xml, function (err, result) {
-						let nameValue = '';
-						let idValue = '';
-
+					if (result) {
 						if (result['active-app'].app[0]['_']) {
 							nameValue = result['active-app'].app[0]['_'];
 							idValue = result['active-app'].app[0]['$'].id;
@@ -153,8 +153,8 @@ module.exports = {
 						//save active app as variable
 						self.setVariableValues({'active-app': nameValue});
 						self.ActiveAppID = idValue;
-					});
-				}
+					}						
+				});
 			}
 			catch(error) {
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Error obtaining Active App from Roku Device.');
@@ -180,7 +180,7 @@ module.exports = {
 		if (self.config.host) {
 			try {
 				let url =  'http://' + self.config.host + ':' + self.config.port + cmd;
-				axios.post(url);
+				fetch(url, {method: 'POST'});
 			}
 			catch(error) {
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Error sending command to Roku Device.');
