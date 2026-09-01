@@ -38,7 +38,7 @@ module.exports = {
 				let parseString = xml2js.parseString;
 
 				let url = 'http://' + self.config.host + ':' + self.config.port + url_deviceinfo
-				let response = await fetch(url);
+				let response = await fetch(url, {signal: AbortSignal.timeout(5000)});
 				let xml = await response.text();
 				
 				parseString(xml, function (err, result) {
@@ -79,9 +79,8 @@ module.exports = {
 			}
 			catch(error) {
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Error obtaining Device Info from Roku Device.');
-				self.log('error', 'Error obtaining Device Info from Roku Device.');
+				self.log('error', 'Error obtaining Device Info from Roku Device. Will retry on next poll.');
 				console.log(error);
-				self.stopTimer();
 			}
 		}
 	},
@@ -96,7 +95,7 @@ module.exports = {
 				let parseString = xml2js.parseString;
 
 				let url = 'http://' + self.config.host + ':' + self.config.port + url_apps;
-				let response = await fetch(url);
+				let response = await fetch(url, {signal: AbortSignal.timeout(5000)});
 				let xml = await response.text();
 
 				parseString(xml, function (err, result) {
@@ -117,8 +116,7 @@ module.exports = {
 			catch(error) {
 				console.log(error)
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Error obtaining Apps List from Roku Device.');
-				self.log('error', 'Error obtaining Apps List from Roku Device.');
-				self.stopTimer();
+				self.log('error', 'Error obtaining Apps List from Roku Device. Will retry on next poll.');
 			}
 		}
 	},
@@ -133,7 +131,7 @@ module.exports = {
 				let parseString = xml2js.parseString;
 
 				let url = 'http://' + self.config.host + ':' + self.config.port + url_active_app;
-				let response = await fetch(url);
+				let response = await fetch(url, {signal: AbortSignal.timeout(5000)});
 				let xml = await response.text();
 
 				parseString(xml, function (err, result) {
@@ -158,9 +156,8 @@ module.exports = {
 			}
 			catch(error) {
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Error obtaining Active App from Roku Device.');
-				self.log('error', 'Error obtaining Active App from Roku Device.');
+				self.log('error', 'Error obtaining Active App from Roku Device. Will retry on next poll.');
 				console.log(error);
-				self.stopTimer();
 			}
 		}
 	},
@@ -174,13 +171,14 @@ module.exports = {
 		}
 	},
 
-	sendCommand: function (cmd) {
+	sendCommand: async function (cmd) {
 		let self = this;
 
 		if (self.config.host) {
 			try {
 				let url =  'http://' + self.config.host + ':' + self.config.port + cmd;
-				fetch(url, {method: 'POST'});
+				await fetch(url, {method: 'POST', signal: AbortSignal.timeout(5000)});
+				self.updateStatus(InstanceStatus.Ok);
 			}
 			catch(error) {
 				self.updateStatus(InstanceStatus.ConnectionFailure, 'Error sending command to Roku Device.');
