@@ -29,6 +29,7 @@ class rokuInstance extends InstanceBase {
 		this.SupportsFindRemote = false;
 		this.ActiveAppID = null;
 		this.Timer = undefined;
+		this.Polling = false;
 
 		this.DEVICE_INFO = {};
 	}
@@ -38,7 +39,7 @@ class rokuInstance extends InstanceBase {
 	}
 
 	async init(config) {
-		this.configUpdated(config);
+		await this.configUpdated(config);
 	}
 
 	async configUpdated(config) {
