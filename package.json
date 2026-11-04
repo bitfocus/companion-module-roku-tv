@@ -3,7 +3,8 @@
 	"version": "2.0.6",
 	"main": "index.js",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"build": "node --check index.js && node --check src/actions.js && node --check src/api.js && node --check src/config.js && node --check src/constants.js && node --check src/feedbacks.js && node --check src/presets.js && node --check src/upgrades.js && node --check src/variables.js",
+		"test": "node --test test/*.test.js"
 	},
 	"repository": {
 		"type": "git",
@@ -11,10 +12,13 @@
 	},
 	"license": "MIT",
 	"dependencies": {
-		"@companion-module/base": "~1.8.0",
+		"@companion-module/base": "~1.15.0",
 		"xml2js": "^0.5.0"
 	},
 	"devDependencies": {
-		"@companion-module/tools": "^2.8.0"
+		"@companion-module/tools": "^2.9.0"
+	},
+	"engines": {
+		"node": "^26.5"
 	}
 }
