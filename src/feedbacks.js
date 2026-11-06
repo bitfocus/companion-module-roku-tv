@@ -23,12 +23,7 @@ module.exports = {
 				}
 			],
 			callback: function (feedback, bank) {
-				if (self.ActiveAppID === feedback.options.app) {
-					return true;
-				}
-				else {
-					return false;
-				}
+				return String(self.ActiveAppID) === String(feedback.options.app);
 			}
 		};
 
@@ -45,7 +40,8 @@ module.exports = {
 					type: 'dropdown',
 					label: 'Active Input',
 					id: 'input',
-					choices: self.Inputs
+					default: 'InputHDMI1',
+					choices: self.CHOICES_INPUTS
 				}
 			],
 			callback: function (feedback, bank) {
@@ -60,12 +56,7 @@ module.exports = {
 				
 				let selectedInput = inputTranslationArray.find( ({ id }) => id === feedback.options.input);
 				
-				if (self.ActiveAppID === selectedInput.queryid) {
-					return true;
-				}
-				else {
-					return false;
-				}
+				return !!selectedInput && self.ActiveAppID === selectedInput.queryid;
 			}
 		};
 
@@ -93,12 +84,8 @@ module.exports = {
 				}
 			],
 			callback: function (feedback, bank) {
-				if (self.DEVICE_INFO['power-mode'].toLowerCase() == feedback.options.powermode.toLowerCase()) {
-					return true;
-				}
-				else {
-					return false;
-				}
+				let mode = self.DEVICE_INFO['power-mode'];
+				return !!mode && String(mode).toLowerCase() === feedback.options.powermode.toLowerCase();
 			}
 		}
 

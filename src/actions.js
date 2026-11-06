@@ -139,7 +139,7 @@ module.exports = {
 				let literalString = await self.parseVariablesInString(opt.literalstring);
 
 				if (literalString.length > 0) {
-					self.sendString(literalString, 0);
+					self.sendString(literalString);
 				}
 			}
 		};
